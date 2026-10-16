@@ -3,10 +3,9 @@ import Base from "../layouts/Base.astro";
 import Section from "../components/Section.astro";
 import Field from "../components/Field.astro";
 import Icon from "../components/Icon.astro";
-import { LIMITS } from "../lib/invoice/types.ts";
+import { LIMITS, PAYMENT_METHODS } from "../lib/invoice/types.ts";
 
 const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Pengembangan aplikasi"];
-const METHODS = ["Transfer Bank", "QRIS", "E-Wallet", "Tunai"];
 ---
 
 <Base title="Invoice Generator · Beresin" description="Buat invoice transaksi customer Beresin dan unduh sebagai PDF.">
@@ -168,7 +167,10 @@ const METHODS = ["Transfer Bank", "QRIS", "E-Wallet", "Tunai"];
         >
           <div class="grid gap-4 sm:grid-cols-2">
             <Field label="Metode pembayaran" for="paymentMethod">
-              <input class="field-input" id="paymentMethod" data-profile="paymentMethod" list="method-suggestions" maxlength="40" />
+              <select class="field-input field-select" id="paymentMethod" data-profile="paymentMethod">
+                <option value="">Pilih metode</option>
+                {PAYMENT_METHODS.map((m) => <option value={m}>{m}</option>)}
+              </select>
             </Field>
             <Field label="Bank / e-wallet" for="bankName">
               <input class="field-input" id="bankName" data-profile="bankName" maxlength="40" />
@@ -204,14 +206,11 @@ const METHODS = ["Transfer Bank", "QRIS", "E-Wallet", "Tunai"];
             <Field label="WhatsApp bisnis" for="bizWhatsapp">
               <input class="field-input" id="bizWhatsapp" data-profile="whatsapp" type="tel" inputmode="tel" maxlength="20" />
             </Field>
-            <Field label="Email" for="email" optional>
+            <Field label="Email" for="email">
               <input class="field-input" id="email" data-profile="email" type="email" maxlength="60" />
             </Field>
-            <Field label="Website" for="website" optional>
-              <input class="field-input" id="website" data-profile="website" maxlength="60" />
-            </Field>
-            <Field label="Alamat" for="address" optional class="sm:col-span-2">
-              <input class="field-input" id="address" data-profile="address" maxlength="100" />
+            <Field label="Website" for="website">
+              <input class="field-input" id="website" data-profile="website" type="url" inputmode="url" maxlength="80" />
             </Field>
           </div>
         </details>
@@ -259,7 +258,6 @@ const METHODS = ["Transfer Bank", "QRIS", "E-Wallet", "Tunai"];
   </div>
 
   <datalist id="service-suggestions">{SERVICES.map((s) => <option value={s} />)}</datalist>
-  <datalist id="method-suggestions">{METHODS.map((s) => <option value={s} />)}</datalist>
 
   <template id="item-template">
     <li class="rounded-xl border border-ink-200 p-3.5 sm:p-4" data-item>

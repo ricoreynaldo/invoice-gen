@@ -144,7 +144,7 @@ function fillForm() {
     const value = draft[key];
     input.value = input.hasAttribute("data-money") ? formatMoneyInput(value as number | null) : String(value ?? "");
   }
-  for (const input of $$<HTMLInputElement>("[data-profile]", form)) {
+  for (const input of $$<HTMLInputElement | HTMLSelectElement>("[data-profile]", form)) {
     input.value = profile[input.dataset.profile as keyof BusinessProfile] as string;
   }
   for (const radio of $$<HTMLInputElement>('input[name="status"]', form)) radio.checked = radio.value === draft.status;

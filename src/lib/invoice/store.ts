@@ -3,14 +3,16 @@
 // membuat aplikasi berhenti, hanya draft yang tidak tersimpan.
 
 import { todayIso } from "../format.ts";
-import type { BusinessProfile, InvoiceDraft, InvoiceItem } from "./types.ts";
+import { PAYMENT_METHODS, type BusinessProfile, type InvoiceDraft, type InvoiceItem } from "./types.ts";
 
 const KEY_DRAFT = "beresin-invoice:draft";
 const KEY_PROFILE = "beresin-invoice:profile";
 const KEY_COUNTER = "beresin-invoice:counter";
 
-/** Nomor WhatsApp admin dari situs Beresin (src/lib/whatsapp-config.ts). */
+/** Kontak resmi Beresin; jadi isi awal info bisnis dan tetap bisa diubah admin. */
 const BERESIN_WHATSAPP = "6285920063749";
+const BERESIN_EMAIL = "beresincorp@gmail.com";
+const BERESIN_WEBSITE = "https://beresin-agent.vercel.app/";
 
 type KV = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -137,27 +139,36 @@ export function clearDraft(): void {
 
 export function defaultProfile(): BusinessProfile {
   return {
-    version: 1,
+    version: 2,
     paymentMethod: "",
     bankName: "",
     accountNumber: "",
     accountName: "",
     signerName: "",
     whatsapp: BERESIN_WHATSAPP,
-    email: "",
-    website: "",
-    address: "",
+    email: BERESIN_EMAIL,
+    website: BERESIN_WEBSITE,
   };
 }
 
 export function loadProfile(): BusinessProfile {
-  const p = readJson<Partial<BusinessProfile>>(KEY_PROFILE);
+  const p = readJson<Partial<Omit<BusinessProfile, "version">> & { version?: number }>(KEY_PROFILE);
   const base = defaultProfile();
-  if (!p || p.version !== 1) return base;
+  if (!p || (p.version !== 1 && p.version !== 2)) return base;
   const merged = { ...base };
   for (const key of Object.keys(base) as (keyof BusinessProfile)[]) {
     if (key !== "version" && typeof p[key] === "string") (merged[key] as string) = p[key] as string;
   }
+  // Versi 1 belum punya isi awal email & website, jadi yang kosong diisi default.
+  // Di versi 2, field yang sengaja dikosongkan admin tetap kosong.
+  if (p.version === 1) {
+    merged.email ||= base.email;
+    merged.website ||= base.website;
+    merged.whatsapp ||= base.whatsapp;
+    saveProfile(merged);
+  }
+  // Metode di luar daftar (mis. "QRIS" dari versi lama) dikosongkan.
+  if (!(PAYMENT_METHODS as readonly string[]).includes(merged.paymentMethod)) merged.paymentMethod = "";
   return merged;
 }
 

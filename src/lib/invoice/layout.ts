@@ -431,7 +431,8 @@ export function layoutInvoice(draft: InvoiceDraft, profile: BusinessProfile, m: 
   const footY = PAGE_H - 13.2;
   const contacts = [wa, email].filter(Boolean);
   const leftText =
-    [profile.address.trim(), profile.website.trim()].filter(Boolean).join(" • ") ||
+    // Di kaki halaman cukup domainnya, mis. "beresin-agent.vercel.app".
+    profile.website.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "") ||
     "Beresin — Butuh sesuatu? Biar kita Beresin.";
 
   b.pages.forEach((page, idx) => {

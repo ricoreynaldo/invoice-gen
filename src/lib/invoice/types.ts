@@ -36,7 +36,7 @@ export interface InvoiceDraft {
  * invoice, jadi disimpan terpisah dari draft dan tidak ikut terhapus saat reset.
  */
 export interface BusinessProfile {
-  version: 1;
+  version: 2;
   paymentMethod: string;
   bankName: string;
   accountNumber: string;
@@ -45,8 +45,10 @@ export interface BusinessProfile {
   whatsapp: string;
   email: string;
   website: string;
-  address: string;
 }
+
+/** Pilihan metode pembayaran di form. */
+export const PAYMENT_METHODS = ["Transfer Bank", "E-Wallet", "Tunai"] as const;
 
 export const LIMITS = {
   customerName: 80,
