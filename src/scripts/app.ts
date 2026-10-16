@@ -1,6 +1,7 @@
 // Controller halaman Invoice Generator: menghubungkan form, state draft,
-// preview SVG, dan ekspor PDF. Logika hitung ada di lib/invoice/calc.ts,
-// tata letak dokumen di lib/invoice/layout.ts.
+// preview SVG, ekspor PDF, dan arsip online. Logika hitung ada di
+// lib/invoice/calc.ts, tata letak dokumen di lib/invoice/layout.ts,
+// arsip & penomoran di lib/firebase/archive.ts.
 
 import { computeTotals, filledItems, validate, type Errors, type Totals } from "../lib/invoice/calc.ts";
 import type { Measurer } from "../lib/invoice/doc.ts";
@@ -18,6 +19,11 @@ import { LIMITS, type BusinessProfile, type InvoiceDraft, type InvoiceItem, type
 import { formatLongDate, formatMoneyInput, formatRupiah, parseMoney } from "../lib/format.ts";
 import { buildPdf, createMeasurer, loadFonts } from "../lib/pdf/engine.ts";
 import { pageToSvg } from "../lib/pdf/svg.ts";
+import { allocateInvoiceNumber, getInvoice, saveInvoice } from "../lib/firebase/archive.ts";
+import { fromArchive } from "../lib/invoice/archive-model.ts";
+import { todayIso } from "../lib/format.ts";
+import { requireAdmin } from "./session.ts";
+import { confirmDialog, showToast } from "./ui.ts";
 
 // ---------- DOM ----------
 const $ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
@@ -32,11 +38,11 @@ const paidInput = $<HTMLInputElement>("#paid");
 const previewPages = $("#preview-pages");
 const previewWarnings = $("#preview-warnings");
 const formErrors = $("#form-errors");
-const resetDialog = $<HTMLDialogElement>("#reset-dialog");
-const toast = $("#toast");
+const resetBtn = $<HTMLButtonElement>("#reset-btn");
 
 // ---------- State ----------
 let draft: InvoiceDraft;
+let userEmail = "";
 let profile: BusinessProfile;
 let totals: Totals;
 let errors: Errors = {};
@@ -69,23 +75,6 @@ function formatMoneyField(input: HTMLInputElement): number | null {
     if (document.activeElement === input) input.setSelectionRange(pos, pos);
   }
   return value;
-}
-
-let toastTimer = 0;
-function showToast(text: string, action?: { label: string; run: () => void }) {
-  $("[data-text]", toast).textContent = text;
-  const btn = $<HTMLButtonElement>("[data-action]", toast);
-  btn.hidden = !action;
-  btn.textContent = action?.label ?? "";
-  btn.onclick = action
-    ? () => {
-        toast.hidden = true;
-        action.run();
-      }
-    : null;
-  toast.hidden = false;
-  window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (toast.hidden = true), action ? 8000 : 3500);
 }
 
 // ---------- Simpan draft ----------
@@ -136,8 +125,13 @@ function renderItems() {
   itemsList.replaceChildren(...draft.items.map(itemNode));
 }
 
+function renderArchiveChip() {
+  $("#archive-chip").textContent = draft.archived ? "Tersimpan di arsip" : "Otomatis";
+}
+
 function fillForm() {
   $("#invoice-number").textContent = draft.number;
+  renderArchiveChip();
   $("#issue-date").textContent = formatLongDate(draft.issueDate);
   for (const input of $$<HTMLInputElement | HTMLTextAreaElement>("[data-field]", form)) {
     const key = input.dataset.field as keyof InvoiceDraft;
@@ -368,33 +362,58 @@ itemsList.addEventListener("click", (event) => {
   changed();
 });
 
-// ---------- Reset ----------
-function openReset() {
-  $("#reset-number").textContent = draft.number;
-  resetDialog.returnValue = "";
-  resetDialog.showModal();
+// ---------- Invoice baru ----------
+function setRestoreBanner(text: string | null) {
+  $("#restore-banner").hidden = !text;
+  $("#restore-text").textContent = text ?? "";
 }
 
-function doReset() {
-  clearDraft();
-  draft = newDraft();
+/** Ganti form dengan invoice lain (baru atau dari arsip). */
+function loadIntoForm(next: InvoiceDraft) {
+  draft = next;
   persistNow();
   showAllErrors = false;
   touched.clear();
-  $("#restore-banner").hidden = true;
   fillForm();
   update();
   window.scrollTo({ top: 0 });
-  $<HTMLInputElement>("#customerName").focus({ preventScroll: true });
-  showToast(`Form direset. Nomor invoice baru: ${draft.number}`);
 }
 
-resetDialog.addEventListener("close", () => {
-  if (resetDialog.returnValue === "confirm") doReset();
-});
-$("#reset-btn").addEventListener("click", openReset);
+async function startNewInvoice(): Promise<boolean> {
+  resetBtn.disabled = true;
+  $("#invoice-number").textContent = "Mengambil nomor…";
+  try {
+    const today = todayIso();
+    const number = await allocateInvoiceNumber(today);
+    clearDraft();
+    loadIntoForm(newDraft(number, today));
+    setRestoreBanner(null);
+    return true;
+  } catch (err) {
+    console.error(err);
+    $("#invoice-number").textContent = draft?.number ?? "—";
+    showToast("Nomor invoice gagal diambil. Periksa koneksi lalu coba lagi.", { error: true });
+    return false;
+  } finally {
+    resetBtn.disabled = false;
+  }
+}
+
+async function openReset() {
+  const body = draft.archived
+    ? `Form dikosongkan untuk invoice baru. ${draft.number} tetap ada di arsip; perubahan yang belum disimpan akan hilang.`
+    : `Isian invoice ${draft.number} belum tersimpan di arsip dan akan dihapus. Tujuan pembayaran dan info bisnis tetap tersimpan.`;
+  const ok = await confirmDialog({ title: "Buat invoice baru?", body, confirm: "Buat invoice baru", danger: !draft.archived });
+  if (!ok) return;
+  if (await startNewInvoice()) {
+    $<HTMLInputElement>("#customerName").focus({ preventScroll: true });
+    showToast(`Invoice baru: ${draft.number}`);
+  }
+}
+
+resetBtn.addEventListener("click", openReset);
 $("#restore-new").addEventListener("click", openReset);
-$("#restore-dismiss").addEventListener("click", () => ($("#restore-banner").hidden = true));
+$("#restore-dismiss").addEventListener("click", () => setRestoreBanner(null));
 
 // ---------- Download PDF ----------
 function focusFirstError() {
@@ -438,12 +457,30 @@ async function download() {
     const layout = layoutInvoice(draft, profile, measurer);
     const filename = `Invoice-Beresin-${draft.number}.pdf`;
     const pdf = buildPdf(layout, { title: `Invoice ${draft.number}` });
-    await pdf.save(filename, { returnPromise: true });
+
+    // Simpan ke arsip dulu: setiap PDF yang beredar pasti ada di arsip.
+    let revision: number;
+    try {
+      revision = await saveInvoice(draft, profile, userEmail);
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal menyimpan ke arsip, PDF belum diunduh. Periksa koneksi lalu coba lagi.", {
+        error: true,
+        action: { label: "Coba lagi", run: download },
+      });
+      return;
+    }
+    draft.archived = true;
     persistNow();
-    showToast(`PDF diunduh: ${filename}`, { label: "Invoice baru", run: openReset });
+    renderArchiveChip();
+
+    await pdf.save(filename, { returnPromise: true });
+    showToast(revision > 1 ? `Arsip diperbarui (revisi ${revision}) & PDF diunduh.` : "Tersimpan di arsip & PDF diunduh.", {
+      action: { label: "Invoice baru", run: openReset },
+    });
   } catch (err) {
     console.error(err);
-    showToast("PDF gagal dibuat. Muat ulang halaman lalu coba lagi.");
+    showToast("PDF gagal dibuat. Muat ulang halaman lalu coba lagi.", { error: true });
   } finally {
     buttons.forEach((b) => (b.disabled = false));
   }
@@ -461,19 +498,63 @@ window.addEventListener("keydown", (e) => {
 window.addEventListener("pagehide", persistNow);
 
 // ---------- Init ----------
-function init() {
-  profile = loadProfile();
-  const restored = loadDraft();
-  draft = restored ?? newDraft();
-  persistNow();
-
-  if (restored && hasContent(restored)) {
-    $("#restore-number").textContent = restored.number;
-    $("#restore-banner").hidden = false;
+/** ?edit=NOMOR dari halaman arsip: buka invoice arsip di form. */
+async function openFromArchive(number: string): Promise<boolean> {
+  const inv = await getInvoice(number);
+  if (!inv) {
+    showToast(`Invoice ${number} tidak ditemukan di arsip.`, { error: true });
+    return false;
   }
+  const current = loadDraft();
+  if (current && current.number !== number && !current.archived && hasContent(current)) {
+    const ok = await confirmDialog({
+      title: `Buka ${number}?`,
+      body: `Draft ${current.number} yang belum tersimpan di arsip akan diganti.`,
+      confirm: "Buka invoice",
+      danger: true,
+    });
+    if (!ok) return false;
+  }
+  loadIntoForm(fromArchive(inv).draft);
+  setRestoreBanner(`Mengedit ${number} dari arsip. Perubahan tersimpan ke arsip saat PDF diunduh ulang.`);
+  return true;
+}
 
-  fillForm();
-  update();
+async function init() {
+  profile = loadProfile();
+  const user = await requireAdmin();
+  userEmail = user.email ?? "";
+
+  const editNumber = new URLSearchParams(location.search).get("edit");
+  if (editNumber) history.replaceState(null, "", location.pathname);
+
+  const restored = loadDraft();
+  let ready = false;
+  if (editNumber) {
+    try {
+      ready = await openFromArchive(editNumber);
+    } catch (err) {
+      console.error(err);
+      showToast("Invoice arsip gagal dibuka. Periksa koneksi.", { error: true });
+    }
+  }
+  if (!ready && restored) {
+    loadIntoForm(restored);
+    if (hasContent(restored)) {
+      setRestoreBanner(
+        restored.archived
+          ? `Melanjutkan ${restored.number} (tersimpan di arsip). Perubahan tersimpan saat PDF diunduh ulang.`
+          : `Melanjutkan draft ${restored.number} yang belum tersimpan di arsip.`,
+      );
+    }
+    ready = true;
+  }
+  if (!ready) ready = await startNewInvoice();
+  resetBtn.disabled = false;
+  if (!ready) {
+    $("#invoice-number").textContent = "Gagal mengambil nomor";
+    return;
+  }
 
   loadFonts()
     .then(async () => {

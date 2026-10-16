@@ -1,4 +1,4 @@
-// Draft, profil bisnis, dan penomoran invoice di localStorage.
+// Draft dan profil bisnis di localStorage (arsip & penomoran ada di Firestore).
 // Semua akses dibungkus try/catch: mode privat atau storage penuh tidak boleh
 // membuat aplikasi berhenti, hanya draft yang tidak tersimpan.
 
@@ -7,7 +7,6 @@ import { PAYMENT_METHODS, type BusinessProfile, type InvoiceDraft, type InvoiceI
 
 const KEY_DRAFT = "beresin-invoice:draft";
 const KEY_PROFILE = "beresin-invoice:profile";
-const KEY_COUNTER = "beresin-invoice:counter";
 
 /** Kontak resmi Beresin; jadi isi awal info bisnis dan tetap bisa diubah admin. */
 const BERESIN_WHATSAPP = "6285920063749";
@@ -51,32 +50,22 @@ export function emptyItem(): InvoiceItem {
   return { id: newItemId(), name: "", description: "", qty: "1", price: null };
 }
 
-/**
- * Ambil nomor berikutnya untuk tanggal hari ini: INV-BRS-YYYYMMDD-001.
- * Counter per tanggal disimpan dan langsung dinaikkan, jadi nomor yang sudah
- * dibagikan tidak dipakai ulang walau invoice-nya di-reset.
- */
-export function allocateInvoiceNumber(dateIso: string = todayIso(), kv: KV | null = storage()): string {
-  const key = dateIso.replaceAll("-", "");
-  const counter = readJson<Record<string, number>>(KEY_COUNTER, kv) ?? {};
-  const next = (counter[key] ?? 0) + 1;
-
-  // Cukup simpan beberapa tanggal terakhir.
-  const kept = Object.keys(counter).sort().slice(-30);
-  const trimmed: Record<string, number> = {};
-  for (const k of kept) trimmed[k] = counter[k];
-  trimmed[key] = next;
-  writeJson(KEY_COUNTER, trimmed, kv);
-
-  return `INV-BRS-${key}-${String(next).padStart(3, "0")}`;
+/** "2026-10-16" -> "20261016" (kunci counter & bagian nomor invoice). */
+export function dateKey(iso: string): string {
+  return iso.replaceAll("-", "");
 }
 
-export function newDraft(kv: KV | null = storage()): InvoiceDraft {
-  const today = todayIso();
+/** INV-BRS-20261016-001 */
+export function formatInvoiceNumber(iso: string, n: number): string {
+  return `INV-BRS-${dateKey(iso)}-${String(n).padStart(3, "0")}`;
+}
+
+/** Invoice kosong. Nomor diambil dari counter online (lib/firebase/archive.ts). */
+export function newDraft(number: string, issueDate: string = todayIso()): InvoiceDraft {
   return {
     version: 1,
-    number: allocateInvoiceNumber(today, kv),
-    issueDate: today,
+    number,
+    issueDate,
     status: "unpaid",
     customerName: "",
     customerWhatsapp: "",
@@ -115,6 +104,7 @@ export function loadDraft(): InvoiceDraft | null {
     notes: d.notes ?? "",
     discount: d.discount ?? null,
     paid: d.paid ?? null,
+    archived: d.archived === true,
     items: d.items.map((it) => ({
       id: it.id || newItemId(),
       name: it.name ?? "",

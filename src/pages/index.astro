@@ -3,32 +3,25 @@ import Base from "../layouts/Base.astro";
 import Section from "../components/Section.astro";
 import Field from "../components/Field.astro";
 import Icon from "../components/Icon.astro";
+import AppHeader from "../components/AppHeader.astro";
+import AuthGate from "../components/AuthGate.astro";
+import Feedback from "../components/Feedback.astro";
 import { LIMITS, PAYMENT_METHODS } from "../lib/invoice/types.ts";
 
 const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Pengembangan aplikasi"];
 ---
 
 <Base title="Invoice Generator · Beresin" description="Buat invoice transaksi customer Beresin dan unduh sebagai PDF.">
-  <header class="border-b border-ink-200 bg-white">
-    <div class="container-app flex h-16 items-center justify-between gap-3">
-      <div class="flex min-w-0 items-center gap-3">
-        <span class="text-[20px] font-bold tracking-[-0.01em] text-ink-900">BERESIN</span>
-        <span class="rounded-full border border-ink-200 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-ink-500 uppercase"
-          >Admin</span
-        >
-      </div>
-      <div class="flex items-center gap-3">
-        <p id="save-status" class="hidden items-center gap-1.5 text-xs text-ink-500 sm:flex" aria-live="polite">
-          <span class="size-1.5 rounded-full bg-ink-300" data-dot></span>
-          <span data-text>Memuat…</span>
-        </p>
-        <button id="reset-btn" type="button" class="btn btn-outline btn-sm">
-          <Icon name="reset" class="size-3.5" />
-          Reset form
-        </button>
-      </div>
-    </div>
-  </header>
+  <AppHeader active="generator">
+    <p id="save-status" class="hidden items-center gap-1.5 text-xs text-ink-500 md:flex" aria-live="polite">
+      <span class="size-1.5 rounded-full bg-ink-300" data-dot></span>
+      <span data-text>Memuat…</span>
+    </p>
+    <button id="reset-btn" type="button" class="btn btn-outline btn-sm" disabled>
+      <Icon name="reset" class="size-3.5" />
+      <span class="hidden sm:inline">Invoice baru</span>
+    </button>
+  </AppHeader>
 
   <main class="container-app pt-7 pb-28 sm:pt-9 lg:pb-12">
     <div class="mb-6 sm:mb-8">
@@ -41,13 +34,10 @@ const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Peng
       class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-200 bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
       hidden
     >
-      <p class="text-ink-700">
-        Melanjutkan draft <strong class="font-semibold text-ink-900" id="restore-number"></strong> yang tersimpan di browser
-        ini.
-      </p>
+      <p class="text-ink-700" id="restore-text"></p>
       <div class="flex gap-2">
         <button type="button" class="btn btn-ghost btn-sm" id="restore-dismiss">Tutup</button>
-        <button type="button" class="btn btn-outline btn-sm" id="restore-new">Hapus draft &amp; mulai baru</button>
+        <button type="button" class="btn btn-outline btn-sm" id="restore-new">Buat invoice baru</button>
       </div>
     </div>
 
@@ -71,7 +61,7 @@ const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Peng
               <span class="field-label">Nomor invoice</span>
               <div class="flex h-11 items-center justify-between gap-3 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-3.5">
                 <output id="invoice-number" class="truncate text-[15px] font-semibold text-ink-900 tabular-nums">—</output>
-                <span class="shrink-0 text-xs text-ink-500">Otomatis</span>
+                <span class="shrink-0 text-xs text-ink-500" id="archive-chip">Otomatis</span>
               </div>
             </div>
             <div>
@@ -226,7 +216,7 @@ const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Peng
             </div>
             <button type="button" class="btn btn-primary btn-md js-download">
               <Icon name="download" />
-              Download PDF
+              Simpan &amp; Unduh PDF
             </button>
           </div>
           <ul id="preview-warnings" class="mb-3 space-y-1.5 text-xs text-ink-700" hidden></ul>
@@ -303,35 +293,8 @@ const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Peng
     </li>
   </template>
 
-  <dialog
-    id="reset-dialog"
-    class="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-2xl border border-ink-200 bg-white p-0 text-ink-800 shadow-xl"
-    aria-labelledby="reset-title"
-  >
-    <form method="dialog" class="p-5 sm:p-6">
-      <h2 id="reset-title" class="text-base font-semibold text-ink-900">Reset form?</h2>
-      <p class="mt-2 text-sm leading-relaxed text-ink-600">
-        Semua isian invoice <strong class="font-semibold text-ink-900" id="reset-number"></strong> akan dihapus dan nomor invoice
-        baru dibuat. Tujuan pembayaran dan info bisnis tetap tersimpan.
-      </p>
-      <div class="mt-5 flex justify-end gap-2">
-        <button value="cancel" class="btn btn-outline btn-md" autofocus>Batal</button>
-        <button value="confirm" class="btn btn-danger btn-md">Reset form</button>
-      </div>
-    </form>
-  </dialog>
-
-  <div
-    id="toast"
-    class="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg lg:bottom-6"
-    role="status"
-    aria-live="polite"
-    hidden
-  >
-    <Icon name="check" class="size-4 shrink-0" />
-    <p class="min-w-0 flex-1 break-words" data-text></p>
-    <button type="button" class="shrink-0 rounded-lg px-2 py-1 font-semibold underline-offset-2 hover:underline" data-action hidden></button>
-  </div>
+  <Feedback />
+  <AuthGate />
 </Base>
 
 <script>

@@ -29,6 +29,8 @@ export interface InvoiceDraft {
   /** Nominal DP; hanya dipakai saat status "dp". */
   paid: number | null;
   notes: string;
+  /** true bila invoice ini sudah ada di arsip online (perubahan disimpan saat unduh ulang). */
+  archived?: boolean;
 }
 
 /**

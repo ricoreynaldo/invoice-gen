@@ -1,0 +1,62 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  active: "generator" | "archive";
+}
+const { active } = Astro.props;
+const NAV = [
+  { href: "/", label: "Buat Invoice", key: "generator" },
+  { href: "/arsip", label: "Arsip", key: "archive" },
+] as const;
+---
+
+<header class="border-b border-ink-200 bg-white">
+  <div class="container-app flex h-16 items-center justify-between gap-3">
+    <div class="flex min-w-0 items-center gap-4 sm:gap-7">
+      <a href="/" class="text-[20px] font-bold tracking-[-0.01em] text-ink-900">BERESIN</a>
+      <nav class="flex items-center gap-1" aria-label="Menu utama">
+        {
+          NAV.map((item) => (
+            <a
+              href={item.href}
+              aria-current={active === item.key ? "page" : undefined}
+              class:list={[
+                "rounded-lg px-2.5 py-1.5 text-sm transition-colors sm:px-3",
+                active === item.key ? "bg-ink-100 font-semibold text-ink-900" : "text-ink-600 hover:text-ink-900",
+              ]}
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </nav>
+    </div>
+    <div class="flex items-center gap-2 sm:gap-3">
+      <slot />
+      <div class="relative" data-user-menu hidden>
+        <button
+          type="button"
+          class="grid size-9 place-items-center rounded-full border border-ink-200 bg-white text-[13px] font-semibold text-ink-800 hover:border-ink-400"
+          aria-haspopup="true"
+          aria-expanded="false"
+          data-user-button
+        >
+          <span data-user-initial>A</span>
+        </button>
+        <div
+          class="absolute top-11 right-0 z-40 w-64 rounded-xl border border-ink-200 bg-white p-2 shadow-lg"
+          data-user-panel
+          hidden
+        >
+          <p class="px-2.5 pt-1.5 text-xs text-ink-500">Masuk sebagai</p>
+          <p class="truncate px-2.5 pb-2 text-sm font-semibold text-ink-900" data-user-email></p>
+          <button type="button" class="btn btn-ghost btn-sm w-full justify-start" data-signout>
+            <Icon name="logout" class="size-4" />
+            Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

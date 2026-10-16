@@ -1,0 +1,89 @@
+---
+import Base from "../layouts/Base.astro";
+import AppHeader from "../components/AppHeader.astro";
+import AuthGate from "../components/AuthGate.astro";
+import Feedback from "../components/Feedback.astro";
+import Icon from "../components/Icon.astro";
+
+const FILTERS = [
+  { value: "all", label: "Semua" },
+  { value: "unpaid", label: "Belum Dibayar" },
+  { value: "dp", label: "DP" },
+  { value: "paid", label: "Lunas" },
+];
+---
+
+<Base title="Arsip Invoice · Beresin" description="Arsip invoice Beresin.">
+  <AppHeader active="archive" />
+
+  <main class="container-app pt-7 pb-16 sm:pt-9">
+    <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-[26px] leading-tight font-bold tracking-[-0.02em] text-ink-900 sm:text-[32px]">Arsip Invoice</h1>
+        <p class="mt-1.5 text-[15px] text-ink-500">Setiap invoice yang diunduh tersimpan di sini.</p>
+      </div>
+      <a href="/" class="btn btn-primary btn-md self-start sm:self-auto"><Icon name="plus" />Buat invoice</a>
+    </div>
+
+    <dl class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4" id="summary">
+      <div class="card p-4"><dt class="text-xs text-ink-500">Invoice</dt><dd class="mt-1 text-lg font-bold text-ink-900 tabular-nums" data-sum="count">0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Total tagihan</dt><dd class="mt-1 truncate text-lg font-bold text-ink-900 tabular-nums" data-sum="total">Rp0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Sudah dibayar</dt><dd class="mt-1 truncate text-lg font-bold text-ink-900 tabular-nums" data-sum="paid">Rp0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Sisa belum dibayar</dt><dd class="mt-1 truncate text-lg font-bold text-ink-900 tabular-nums" data-sum="balance">Rp0</dd></div>
+    </dl>
+
+    <div class="card">
+      <div class="flex flex-col gap-3 border-b border-ink-200 p-3 sm:p-4 md:flex-row md:items-center md:justify-between">
+        <label class="relative block md:w-80">
+          <span class="sr-only">Cari invoice</span>
+          <span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-400"><Icon name="search" /></span>
+          <input id="search" type="search" class="field-input h-10 pl-10 text-sm" placeholder="Cari nama customer atau nomor" autocomplete="off" />
+        </label>
+        <div class="segmented grid-cols-4 md:w-[26rem]" role="radiogroup" aria-label="Filter status">
+          {
+            FILTERS.map((f, i) => (
+              <label>
+                <input type="radio" name="filter" value={f.value} checked={i === 0} />
+                <span class="truncate">{f.label}</span>
+              </label>
+            ))
+          }
+        </div>
+      </div>
+
+      <div id="list-state" class="px-4 py-14 text-center text-sm text-ink-500">Memuat arsip…</div>
+
+      <!-- Desktop: tabel -->
+      <div class="hidden overflow-x-auto lg:block">
+        <table class="w-full text-left text-sm" id="table" hidden>
+          <thead class="border-b border-ink-200 text-xs text-ink-500">
+            <tr>
+              <th class="px-4 py-3 font-medium">No. invoice</th>
+              <th class="px-4 py-3 font-medium">Customer</th>
+              <th class="px-4 py-3 font-medium">Status</th>
+              <th class="px-4 py-3 text-right font-medium">Total</th>
+              <th class="px-4 py-3 text-right font-medium">Sisa</th>
+              <th class="px-4 py-3 font-medium">Diperbarui</th>
+              <th class="px-4 py-3"><span class="sr-only">Aksi</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows" class="divide-y divide-ink-100"></tbody>
+        </table>
+      </div>
+
+      <!-- Mobile: kartu -->
+      <ul id="cards" class="divide-y divide-ink-100 lg:hidden"></ul>
+
+      <div class="border-t border-ink-200 p-3 text-center" id="more-wrap" hidden>
+        <button type="button" class="btn btn-outline btn-sm" id="load-more">Muat lebih banyak</button>
+      </div>
+    </div>
+  </main>
+
+  <Feedback />
+  <AuthGate />
+</Base>
+
+<script>
+  import "../scripts/archive.ts";
+</script>

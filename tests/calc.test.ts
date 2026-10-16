@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeTotals, validate, lineTotal } from "../src/lib/invoice/calc.ts";
 import { formatRupiah, parseMoney, parseQty, displayWhatsapp } from "../src/lib/format.ts";
-import { allocateInvoiceNumber } from "../src/lib/invoice/store.ts";
+import { formatInvoiceNumber } from "../src/lib/invoice/store.ts";
 import type { InvoiceDraft } from "../src/lib/invoice/types.ts";
 
 function draft(over: Partial<InvoiceDraft> = {}): InvoiceDraft {
@@ -68,11 +68,8 @@ test("validasi field", () => {
   assert.ok(zeroLunas.status);
 });
 
-test("nomor invoice berurutan per tanggal dan tidak dipakai ulang", () => {
-  const mem = new Map<string, string>();
-  const kv = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
-  assert.equal(allocateInvoiceNumber("2026-10-16", kv), "INV-BRS-20261016-001");
-  assert.equal(allocateInvoiceNumber("2026-10-16", kv), "INV-BRS-20261016-002");
-  assert.equal(allocateInvoiceNumber("2026-10-17", kv), "INV-BRS-20261017-001");
-  assert.equal(allocateInvoiceNumber("2026-10-16", kv), "INV-BRS-20261016-003");
+test("format nomor invoice", () => {
+  assert.equal(formatInvoiceNumber("2026-10-16", 1), "INV-BRS-20261016-001");
+  assert.equal(formatInvoiceNumber("2026-10-16", 42), "INV-BRS-20261016-042");
+  assert.equal(formatInvoiceNumber("2026-10-16", 1234), "INV-BRS-20261016-1234");
 });
