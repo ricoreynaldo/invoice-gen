@@ -1,0 +1,340 @@
+---
+import Base from "../layouts/Base.astro";
+import Section from "../components/Section.astro";
+import Field from "../components/Field.astro";
+import Icon from "../components/Icon.astro";
+import { LIMITS } from "../lib/invoice/types.ts";
+
+const SERVICES = ["Pembuatan website", "Desain grafis", "Pengolahan data", "Pengembangan aplikasi"];
+const METHODS = ["Transfer Bank", "QRIS", "E-Wallet", "Tunai"];
+---
+
+<Base title="Invoice Generator · Beresin" description="Buat invoice transaksi customer Beresin dan unduh sebagai PDF.">
+  <header class="border-b border-ink-200 bg-white">
+    <div class="container-app flex h-16 items-center justify-between gap-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <span class="text-[20px] font-bold tracking-[-0.01em] text-ink-900">BERESIN</span>
+        <span class="rounded-full border border-ink-200 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-ink-500 uppercase"
+          >Admin</span
+        >
+      </div>
+      <div class="flex items-center gap-3">
+        <p id="save-status" class="hidden items-center gap-1.5 text-xs text-ink-500 sm:flex" aria-live="polite">
+          <span class="size-1.5 rounded-full bg-ink-300" data-dot></span>
+          <span data-text>Memuat…</span>
+        </p>
+        <button id="reset-btn" type="button" class="btn btn-outline btn-sm">
+          <Icon name="reset" class="size-3.5" />
+          Reset form
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-app pt-7 pb-28 sm:pt-9 lg:pb-12">
+    <div class="mb-6 sm:mb-8">
+      <h1 class="text-[26px] leading-tight font-bold tracking-[-0.02em] text-ink-900 sm:text-[32px]">Invoice Generator</h1>
+      <p class="mt-1.5 text-[15px] text-ink-500">Buat invoice transaksi customer dengan cepat.</p>
+    </div>
+
+    <div
+      id="restore-banner"
+      class="mb-5 flex flex-col gap-3 rounded-2xl border border-ink-200 bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+      hidden
+    >
+      <p class="text-ink-700">
+        Melanjutkan draft <strong class="font-semibold text-ink-900" id="restore-number"></strong> yang tersimpan di browser
+        ini.
+      </p>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-ghost btn-sm" id="restore-dismiss">Tutup</button>
+        <button type="button" class="btn btn-outline btn-sm" id="restore-new">Hapus draft &amp; mulai baru</button>
+      </div>
+    </div>
+
+    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] xl:gap-8">
+      <!-- ================= FORM ================= -->
+      <form id="invoice-form" class="min-w-0 space-y-4" novalidate autocomplete="off">
+        <div
+          id="form-errors"
+          class="flex gap-3 rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-700"
+          role="alert"
+          tabindex="-1"
+          hidden
+        >
+          <Icon name="alert" class="mt-0.5 size-4 shrink-0" />
+          <p data-text></p>
+        </div>
+
+        <Section step="1" title="Informasi Invoice" id="sec-invoice">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <span class="field-label">Nomor invoice</span>
+              <div class="flex h-11 items-center justify-between gap-3 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-3.5">
+                <output id="invoice-number" class="truncate text-[15px] font-semibold text-ink-900 tabular-nums">—</output>
+                <span class="shrink-0 text-xs text-ink-500">Otomatis</span>
+              </div>
+            </div>
+            <Field label="Tanggal penerbitan" for="issueDate" required>
+              <input class="field-input" type="date" id="issueDate" data-field="issueDate" required />
+            </Field>
+            <Field label="Tanggal jatuh tempo" for="dueDate" required>
+              <input class="field-input" type="date" id="dueDate" data-field="dueDate" required />
+            </Field>
+            <fieldset class="sm:col-span-2">
+              <legend class="field-label">Status pembayaran</legend>
+              <div class="segmented" role="radiogroup">
+                <label><input type="radio" name="status" value="unpaid" /><span>Belum Dibayar</span></label>
+                <label><input type="radio" name="status" value="dp" /><span>DP</span></label>
+                <label><input type="radio" name="status" value="paid" /><span>Lunas</span></label>
+              </div>
+              <p class="field-error" data-error="status" role="alert" hidden></p>
+            </fieldset>
+          </div>
+        </Section>
+
+        <Section step="2" title="Customer" id="sec-customer">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <Field label="Nama customer" for="customerName" required>
+              <input
+                class="field-input"
+                id="customerName"
+                data-field="customerName"
+                maxlength={LIMITS.customerName}
+                autocomplete="off"
+                aria-describedby="customerName-error"
+              />
+            </Field>
+            <Field label="Nomor WhatsApp" for="customerWhatsapp" optional hint="Contoh: 0812 3456 7890">
+              <input
+                class="field-input"
+                id="customerWhatsapp"
+                data-field="customerWhatsapp"
+                type="tel"
+                inputmode="tel"
+                maxlength="20"
+                autocomplete="off"
+                aria-describedby="customerWhatsapp-error customerWhatsapp-hint"
+              />
+            </Field>
+          </div>
+        </Section>
+
+        <Section step="3" title="Rincian Layanan" description="Nama layanan bebas diketik." id="sec-items">
+          <span slot="aside" class="mt-0.5 shrink-0 text-xs text-ink-500 tabular-nums" id="item-count"></span>
+          <ol id="items-list" class="space-y-3"></ol>
+          <p class="field-error" data-error="items" role="alert" hidden></p>
+          <button type="button" id="add-item" class="btn btn-outline btn-md mt-3 w-full border-dashed">
+            <Icon name="plus" />
+            Tambah item
+          </button>
+        </Section>
+
+        <Section step="4" title="Pembayaran" id="sec-payment">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <Field label="Diskon" for="discount" optional>
+              <div class="money">
+                <span>Rp</span>
+                <input class="field-input" id="discount" data-field="discount" data-money inputmode="numeric" placeholder="0" />
+              </div>
+            </Field>
+            <Field label="Nominal DP dibayar" for="paid" hint="Isi jumlah yang sudah dibayar customer.">
+              <div class="money">
+                <span>Rp</span>
+                <input class="field-input" id="paid" data-field="paid" data-money inputmode="numeric" placeholder="0" />
+              </div>
+            </Field>
+          </div>
+
+          <dl class="mt-5 space-y-2 rounded-xl bg-ink-50 p-4 text-sm tabular-nums">
+            <div class="flex justify-between gap-4"><dt class="text-ink-500">Subtotal</dt><dd data-sum="subtotal">Rp0</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-500">Diskon</dt><dd data-sum="discount">Rp0</dd></div>
+            <div class="flex justify-between gap-4 border-t border-ink-200 pt-2 font-semibold text-ink-900">
+              <dt>Total tagihan</dt><dd data-sum="total">Rp0</dd>
+            </div>
+            <div class="flex justify-between gap-4"><dt class="text-ink-500">Sudah dibayar</dt><dd data-sum="paid">Rp0</dd></div>
+            <div class="flex justify-between gap-4 text-[15px] font-bold text-ink-900">
+              <dt>Sisa pembayaran</dt><dd data-sum="balance">Rp0</dd>
+            </div>
+          </dl>
+        </Section>
+
+        <Section
+          step="5"
+          title="Tujuan Pembayaran"
+          description="Disimpan di browser ini dan dipakai lagi untuk invoice berikutnya."
+          id="sec-destination"
+        >
+          <div class="grid gap-4 sm:grid-cols-2">
+            <Field label="Metode pembayaran" for="paymentMethod">
+              <input class="field-input" id="paymentMethod" data-profile="paymentMethod" list="method-suggestions" maxlength="40" />
+            </Field>
+            <Field label="Bank / e-wallet" for="bankName">
+              <input class="field-input" id="bankName" data-profile="bankName" maxlength="40" />
+            </Field>
+            <Field label="Nomor rekening / akun" for="accountNumber">
+              <input class="field-input tabular-nums" id="accountNumber" data-profile="accountNumber" maxlength="40" />
+            </Field>
+            <Field label="Atas nama" for="accountName">
+              <input class="field-input" id="accountName" data-profile="accountName" maxlength="60" />
+            </Field>
+          </div>
+        </Section>
+
+        <Section step="6" title="Catatan Tambahan" id="sec-notes">
+          <Field label="Catatan untuk customer" for="notes" optional>
+            <textarea class="field-input" id="notes" data-field="notes" rows="3" maxlength={LIMITS.notes}></textarea>
+          </Field>
+          <p class="mt-1 text-right text-xs text-ink-400 tabular-nums" id="notes-count"></p>
+        </Section>
+
+        <details class="card group" id="sec-business">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-3 p-4 sm:px-6 [&::-webkit-details-marker]:hidden">
+            <span>
+              <span class="block text-[15px] font-semibold text-ink-900">Info Bisnis di Invoice</span>
+              <span class="mt-0.5 block text-[13px] text-ink-500">Penanda tangan dan kontak di kaki invoice. Disimpan di browser ini.</span>
+            </span>
+            <span class="text-ink-400 transition-transform group-open:rotate-45"><Icon name="plus" /></span>
+          </summary>
+          <div class="grid gap-4 border-t border-ink-200 p-4 sm:grid-cols-2 sm:p-6">
+            <Field label="Nama penanda tangan" for="signerName" hint="Kosong = “Admin Beresin”.">
+              <input class="field-input" id="signerName" data-profile="signerName" maxlength="40" />
+            </Field>
+            <Field label="WhatsApp bisnis" for="bizWhatsapp">
+              <input class="field-input" id="bizWhatsapp" data-profile="whatsapp" type="tel" inputmode="tel" maxlength="20" />
+            </Field>
+            <Field label="Email" for="email" optional>
+              <input class="field-input" id="email" data-profile="email" type="email" maxlength="60" />
+            </Field>
+            <Field label="Website" for="website" optional>
+              <input class="field-input" id="website" data-profile="website" maxlength="60" />
+            </Field>
+            <Field label="Alamat" for="address" optional class="sm:col-span-2">
+              <input class="field-input" id="address" data-profile="address" maxlength="100" />
+            </Field>
+          </div>
+        </details>
+      </form>
+
+      <!-- ================= PREVIEW ================= -->
+      <aside id="preview" class="min-w-0 scroll-mt-4 lg:sticky lg:top-4" aria-labelledby="preview-title">
+        <div class="rounded-2xl bg-[#e6e6e6] p-3 sm:p-5">
+          <div class="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+            <div class="min-w-0 pl-1">
+              <h2 id="preview-title" class="text-sm font-semibold text-ink-900">Preview</h2>
+              <p class="text-xs text-ink-600" id="page-count">A4</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-md js-download">
+              <Icon name="download" />
+              Download PDF
+            </button>
+          </div>
+          <ul id="preview-warnings" class="mb-3 space-y-1.5 text-xs text-ink-700" hidden></ul>
+          <div
+            id="preview-pages"
+            class="space-y-4 lg:max-h-[calc(100dvh-9rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+            aria-live="off"
+          >
+            <div class="grid aspect-[210/297] place-items-center rounded-[3px] bg-white text-sm text-ink-400">Menyiapkan preview…</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Bar bawah mobile -->
+  <div
+    id="mobile-bar"
+    class="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+  >
+    <div class="mx-auto flex max-w-xl items-center gap-2">
+      <div class="min-w-0 flex-1">
+        <p class="text-[11px] text-ink-500" id="mobile-total-label">Total tagihan</p>
+        <p class="truncate text-base font-bold text-ink-900 tabular-nums" id="mobile-total">Rp0</p>
+      </div>
+      <a href="#preview" class="btn btn-outline btn-md px-3.5" id="mobile-preview"><Icon name="eye" />Preview</a>
+      <button type="button" class="btn btn-primary btn-md px-4 js-download"><Icon name="download" />PDF</button>
+    </div>
+  </div>
+
+  <datalist id="service-suggestions">{SERVICES.map((s) => <option value={s} />)}</datalist>
+  <datalist id="method-suggestions">{METHODS.map((s) => <option value={s} />)}</datalist>
+
+  <template id="item-template">
+    <li class="rounded-xl border border-ink-200 p-3.5 sm:p-4" data-item>
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <span class="text-[13px] font-semibold text-ink-900" data-item-title>Item</span>
+        <button type="button" class="btn btn-ghost -mr-1.5 h-8 rounded-lg px-2 text-[13px] text-ink-500" data-item-remove>
+          <Icon name="trash" class="size-3.5" />
+          Hapus
+        </button>
+      </div>
+      <div class="grid gap-3">
+        <div>
+          <label class="field-label" data-label="name">Nama layanan <span class="text-accent-500" aria-hidden="true">*</span></label>
+          <input class="field-input" data-item-field="name" list="service-suggestions" maxlength={LIMITS.itemName} autocomplete="off" />
+          <p class="field-error" data-item-error="name" role="alert" hidden></p>
+        </div>
+        <div>
+          <label class="field-label" data-label="description">Deskripsi <span class="font-normal text-ink-400">(opsional)</span></label>
+          <textarea class="field-input min-h-16" data-item-field="description" rows="2" maxlength={LIMITS.itemDescription}></textarea>
+        </div>
+        <div class="grid grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)] gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1fr)]">
+          <div>
+            <label class="field-label" data-label="qty">Qty <span class="text-accent-500" aria-hidden="true">*</span></label>
+            <input class="field-input tabular-nums" data-item-field="qty" inputmode="decimal" maxlength="9" />
+            <p class="field-error" data-item-error="qty" role="alert" hidden></p>
+          </div>
+          <div>
+            <label class="field-label" data-label="price">Harga satuan <span class="text-accent-500" aria-hidden="true">*</span></label>
+            <div class="money">
+              <span>Rp</span>
+              <input class="field-input" data-item-field="price" data-money inputmode="numeric" placeholder="0" />
+            </div>
+            <p class="field-error" data-item-error="price" role="alert" hidden></p>
+          </div>
+          <div class="col-span-2 sm:col-span-1">
+            <span class="field-label">Total</span>
+            <output class="flex h-11 items-center rounded-xl bg-ink-50 px-3.5 text-[15px] font-semibold text-ink-900 tabular-nums" data-item-total
+              >Rp0</output
+            >
+          </div>
+        </div>
+      </div>
+    </li>
+  </template>
+
+  <dialog
+    id="reset-dialog"
+    class="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-2xl border border-ink-200 bg-white p-0 text-ink-800 shadow-xl"
+    aria-labelledby="reset-title"
+  >
+    <form method="dialog" class="p-5 sm:p-6">
+      <h2 id="reset-title" class="text-base font-semibold text-ink-900">Reset form?</h2>
+      <p class="mt-2 text-sm leading-relaxed text-ink-600">
+        Semua isian invoice <strong class="font-semibold text-ink-900" id="reset-number"></strong> akan dihapus dan nomor invoice
+        baru dibuat. Tujuan pembayaran dan info bisnis tetap tersimpan.
+      </p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button value="cancel" class="btn btn-outline btn-md" autofocus>Batal</button>
+        <button value="confirm" class="btn btn-danger btn-md">Reset form</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div
+    id="toast"
+    class="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center gap-3 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg lg:bottom-6"
+    role="status"
+    aria-live="polite"
+    hidden
+  >
+    <Icon name="check" class="size-4 shrink-0" />
+    <p class="min-w-0 flex-1 break-words" data-text></p>
+    <button type="button" class="shrink-0 rounded-lg px-2 py-1 font-semibold underline-offset-2 hover:underline" data-action hidden></button>
+  </div>
+</Base>
+
+<script>
+  import "../scripts/app.ts";
+</script>

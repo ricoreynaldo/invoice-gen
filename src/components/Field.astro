@@ -1,0 +1,25 @@
+---
+// Label + kontrol + slot error. Elemen error diisi app.ts lewat data-error.
+interface Props {
+  label: string;
+  for: string;
+  /** Kunci error dari validate(); default sama dengan id. */
+  errorKey?: string;
+  required?: boolean;
+  optional?: boolean;
+  hint?: string;
+  class?: string;
+}
+const { label, for: htmlFor, errorKey = htmlFor, required, optional, hint, class: cls } = Astro.props;
+---
+
+<div class:list={["min-w-0", cls]}>
+  <label class="field-label" for={htmlFor}>
+    {label}
+    {required && <span class="ml-0.5 text-accent-500" aria-hidden="true">*</span>}
+    {optional && <span class="ml-1 font-normal text-ink-400">(opsional)</span>}
+  </label>
+  <slot />
+  <p class="field-error" data-error={errorKey} id={`${htmlFor}-error`} role="alert" hidden></p>
+  {hint && <p class="field-hint" data-hint={errorKey} id={`${htmlFor}-hint`}>{hint}</p>}
+</div>

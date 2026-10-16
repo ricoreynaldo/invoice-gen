@@ -1,0 +1,24 @@
+---
+interface Props {
+  step: string;
+  title: string;
+  description?: string;
+  id?: string;
+}
+const { step, title, description, id } = Astro.props;
+---
+
+<section class="card p-4 sm:p-6" id={id} aria-labelledby={id ? `${id}-title` : undefined}>
+  <header class="mb-5 flex items-start gap-3">
+    <span
+      class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-ink-300 text-[11px] font-semibold text-ink-600 tabular-nums"
+      aria-hidden="true">{step}</span
+    >
+    <div class="min-w-0 flex-1">
+      <h2 id={id ? `${id}-title` : undefined} class="text-[15px] font-semibold text-ink-900">{title}</h2>
+      {description && <p class="mt-0.5 text-[13px] text-ink-500">{description}</p>}
+    </div>
+    <slot name="aside" />
+  </header>
+  <slot />
+</section>
