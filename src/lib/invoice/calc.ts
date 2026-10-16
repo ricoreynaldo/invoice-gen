@@ -76,12 +76,6 @@ export function validate(draft: InvoiceDraft, totals: Totals = computeTotals(dra
     if (!/^62\d{8,13}$/.test(wa)) errors.customerWhatsapp = "Nomor WhatsApp tidak valid. Contoh: 0812 3456 7890.";
   }
 
-  if (!draft.issueDate) errors.issueDate = "Tanggal penerbitan wajib diisi.";
-  if (!draft.dueDate) errors.dueDate = "Tanggal jatuh tempo wajib diisi.";
-  else if (draft.issueDate && draft.dueDate < draft.issueDate) {
-    errors.dueDate = "Jatuh tempo tidak boleh sebelum tanggal penerbitan.";
-  }
-
   const items = filledItems(draft.items);
   if (items.length === 0) errors.items = "Tambahkan minimal satu item layanan.";
 

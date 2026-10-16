@@ -68,19 +68,20 @@ const METHODS = ["Transfer Bank", "QRIS", "E-Wallet", "Tunai"];
 
         <Section step="1" title="Informasi Invoice" id="sec-invoice">
           <div class="grid gap-4 sm:grid-cols-2">
-            <div class="sm:col-span-2">
+            <div>
               <span class="field-label">Nomor invoice</span>
               <div class="flex h-11 items-center justify-between gap-3 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-3.5">
                 <output id="invoice-number" class="truncate text-[15px] font-semibold text-ink-900 tabular-nums">—</output>
                 <span class="shrink-0 text-xs text-ink-500">Otomatis</span>
               </div>
             </div>
-            <Field label="Tanggal penerbitan" for="issueDate" required>
-              <input class="field-input" type="date" id="issueDate" data-field="issueDate" required />
-            </Field>
-            <Field label="Tanggal jatuh tempo" for="dueDate" required>
-              <input class="field-input" type="date" id="dueDate" data-field="dueDate" required />
-            </Field>
+            <div>
+              <span class="field-label">Tanggal penerbitan</span>
+              <div class="flex h-11 items-center justify-between gap-3 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-3.5">
+                <output id="issue-date" class="truncate text-[15px] font-semibold text-ink-900 tabular-nums">—</output>
+                <span class="shrink-0 text-xs text-ink-500">Otomatis</span>
+              </div>
+            </div>
             <fieldset class="sm:col-span-2">
               <legend class="field-label">Status pembayaran</legend>
               <div class="segmented" role="radiogroup">

@@ -17,7 +17,7 @@ const measurer = createMeasurer();
 
 function draft(over: Partial<InvoiceDraft> = {}): InvoiceDraft {
   return {
-    version: 1, number: "INV-BRS-20261016-001", issueDate: "2026-10-16", dueDate: "2026-10-23",
+    version: 1, number: "INV-BRS-20261016-001", issueDate: "2026-10-16",
     status: "unpaid", customerName: "Budi", customerWhatsapp: "",
     items: [{ id: "a", name: "Website", description: "", qty: "1", price: 1_000_000 }],
     discount: null, paid: null, notes: "", ...over,

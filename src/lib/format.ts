@@ -74,12 +74,6 @@ export function toIsoDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export function addDays(iso: string, days: number): string {
-  const p = splitIsoDate(iso);
-  if (!p) return iso;
-  return toIsoDate(new Date(p.y, p.m - 1, p.d + days));
-}
-
 /**
  * Normalisasi nomor WhatsApp Indonesia ke 62xxxxxxxxx, supaya "0812...",
  * "+62812..." dan "0812-3456" dianggap nomor yang sama.

@@ -7,7 +7,7 @@ import type { InvoiceDraft } from "../src/lib/invoice/types.ts";
 
 function draft(over: Partial<InvoiceDraft> = {}): InvoiceDraft {
   return {
-    version: 1, number: "INV-BRS-20261016-001", issueDate: "2026-10-16", dueDate: "2026-10-23",
+    version: 1, number: "INV-BRS-20261016-001", issueDate: "2026-10-16",
     status: "unpaid", customerName: "Budi", customerWhatsapp: "",
     items: [
       { id: "a", name: "Website", description: "", qty: "2", price: 1_500_000 },
@@ -57,7 +57,6 @@ test("validasi field", () => {
   assert.ok(validate(draft({ status: "dp", paid: 99_000_000 })).paid);
   assert.ok(validate(draft({ status: "dp", paid: 3_450_000 })).paid, "DP = total harus pakai Lunas");
   assert.deepEqual(validate(draft({ status: "dp", paid: 100_000 })), {});
-  assert.ok(validate(draft({ dueDate: "2026-10-01" })).dueDate);
   assert.ok(validate(draft({ customerWhatsapp: "123" })).customerWhatsapp);
   const bad = validate(draft({ items: [{ id: "q", name: "A", description: "", qty: "0", price: 10 }] }));
   assert.ok(bad["item:q:qty"]);

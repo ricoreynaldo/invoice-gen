@@ -15,7 +15,7 @@ import {
   saveProfile,
 } from "../lib/invoice/store.ts";
 import { LIMITS, type BusinessProfile, type InvoiceDraft, type InvoiceItem, type PaymentStatus } from "../lib/invoice/types.ts";
-import { formatMoneyInput, formatRupiah, parseMoney } from "../lib/format.ts";
+import { formatLongDate, formatMoneyInput, formatRupiah, parseMoney } from "../lib/format.ts";
 import { buildPdf, createMeasurer, loadFonts } from "../lib/pdf/engine.ts";
 import { pageToSvg } from "../lib/pdf/svg.ts";
 
@@ -138,6 +138,7 @@ function renderItems() {
 
 function fillForm() {
   $("#invoice-number").textContent = draft.number;
+  $("#issue-date").textContent = formatLongDate(draft.issueDate);
   for (const input of $$<HTMLInputElement | HTMLTextAreaElement>("[data-field]", form)) {
     const key = input.dataset.field as keyof InvoiceDraft;
     const value = draft[key];
@@ -398,8 +399,6 @@ $("#restore-dismiss").addEventListener("click", () => ($("#restore-banner").hidd
 // ---------- Download PDF ----------
 function focusFirstError() {
   const order = [
-    "issueDate",
-    "dueDate",
     "status",
     "customerName",
     "customerWhatsapp",

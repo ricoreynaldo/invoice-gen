@@ -20,7 +20,7 @@ if (many) {
   for (let i = 0; i < 22; i++) items.push({ id: "x" + i, name: `Layanan tambahan nomor ${i + 1} dengan nama yang cukup panjang supaya terbungkus`, description: i % 3 === 0 ? "Deskripsi panjang ".repeat(14) : "", qty: String(i + 1), price: 125000 * (i + 1) });
 }
 const draft: InvoiceDraft = {
-  version: 1, number: "INV-BRS-20261016-001", issueDate: "2026-10-16", dueDate: "2026-10-23",
+  version: 1, number: "INV-BRS-20261016-001", issueDate: "2026-10-16",
   status: "dp", customerName: "Rina Kartika Sari", customerWhatsapp: "081234567890",
   items, discount: 250000, paid: 1000000,
   notes: "Pengerjaan dimulai setelah DP diterima. Revisi mayor maksimal 2 kali. 😀",

@@ -2,7 +2,7 @@
 // Semua akses dibungkus try/catch: mode privat atau storage penuh tidak boleh
 // membuat aplikasi berhenti, hanya draft yang tidak tersimpan.
 
-import { addDays, todayIso } from "../format.ts";
+import { todayIso } from "../format.ts";
 import type { BusinessProfile, InvoiceDraft, InvoiceItem } from "./types.ts";
 
 const KEY_DRAFT = "beresin-invoice:draft";
@@ -75,7 +75,6 @@ export function newDraft(kv: KV | null = storage()): InvoiceDraft {
     version: 1,
     number: allocateInvoiceNumber(today, kv),
     issueDate: today,
-    dueDate: addDays(today, 7),
     status: "unpaid",
     customerName: "",
     customerWhatsapp: "",
@@ -99,11 +98,16 @@ function isDraft(value: unknown): value is InvoiceDraft {
 }
 
 export function loadDraft(): InvoiceDraft | null {
-  const d = readJson<InvoiceDraft>(KEY_DRAFT);
-  if (!isDraft(d)) return null;
+  const raw = readJson<InvoiceDraft & { dueDate?: unknown }>(KEY_DRAFT);
+  if (!isDraft(raw)) return null;
+  // Draft versi lama masih punya jatuh tempo; buang.
+  const { dueDate: _dueDate, ...d } = raw;
+  // Tanggal terbit selalu ada; fallback ke tanggal di nomor invoice.
+  const fromNumber = d.number.replace(/^INV-BRS-(\d{4})(\d{2})(\d{2})-.*$/, "$1-$2-$3");
   // Lengkapi field yang mungkin hilang dari versi lama.
   return {
     ...d,
+    issueDate: /^\d{4}-\d{2}-\d{2}$/.test(d.issueDate ?? "") ? d.issueDate : fromNumber,
     customerName: d.customerName ?? "",
     customerWhatsapp: d.customerWhatsapp ?? "",
     notes: d.notes ?? "",

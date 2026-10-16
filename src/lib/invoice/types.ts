@@ -19,8 +19,8 @@ export interface InvoiceItem {
 export interface InvoiceDraft {
   version: 1;
   number: string;
+  /** Tanggal penerbitan, diisi otomatis saat invoice dibuat dan tidak diedit. */
   issueDate: string;
-  dueDate: string;
   status: PaymentStatus;
   customerName: string;
   customerWhatsapp: string;

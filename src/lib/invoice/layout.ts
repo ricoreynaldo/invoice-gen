@@ -239,9 +239,9 @@ export function layoutInvoice(draft: InvoiceDraft, profile: BusinessProfile, m: 
   // Panel digambar di awal daftar supaya berada di bawah teks.
   b.page.unshift({ t: "rect", x: X0, y: panelTop, w: CW, h: panelBottom - panelTop, fill: C.panel });
 
-  // ---------- Baris jatuh tempo + nomor invoice ----------
+  // ---------- Baris tanggal penerbitan + nomor invoice ----------
   const metaY = panelBottom + 14.5;
-  b.text(`JATUH TEMPO: ${formatLongDate(draft.dueDate).toUpperCase()}`, X0, metaY, 6.2, 400, C.muted, { ls: 0.1 });
+  b.text(`TANGGAL: ${formatLongDate(draft.issueDate).toUpperCase()}`, X0, metaY, 6.2, 400, C.muted, { ls: 0.1 });
   b.text(`NO. INVOICE: ${draft.number}`, X1, metaY, 6.4, 700, C.ink, { align: "right", ls: 0.1 });
 
   // ---------- Tabel item ----------
@@ -336,7 +336,7 @@ export function layoutInvoice(draft: InvoiceDraft, profile: BusinessProfile, m: 
       ? "Lunas. Terima kasih atas pembayarannya."
       : draft.status === "dp"
         ? `Dari total ${formatRupiah(totals.total)}, DP ${formatRupiah(totals.paid)} sudah diterima.`
-        : `Mohon dibayar sebelum ${formatLongDate(draft.dueDate)}.`;
+        : "Belum ada pembayaran yang diterima.";
 
   const summaryHeight = Math.max(4.4 + (summaryRows.length - 1) * sumStep + 2, sumStep + 3.6 + boxH + 6.5);
   if (y + 4 + summaryHeight > CONTENT_BOTTOM) y = continuationHeader();
