@@ -9,7 +9,8 @@ const { active } = Astro.props;
 // "Buat Invoice" disingkat supaya header muat satu baris.
 const NAV = [
   { href: "/", label: "Beranda", short: "", key: "home" },
-  { href: "/buat", label: "Buat Invoice", short: "Buat", key: "generator" },
+  // Menu ini selalu membuka invoice kosong baru (lihat ?new di scripts/app.ts).
+  { href: "/buat?new=1", label: "Buat Invoice", short: "Buat", key: "generator" },
   { href: "/arsip", label: "Arsip", short: "Arsip", key: "archive" },
 ] as const;
 ---

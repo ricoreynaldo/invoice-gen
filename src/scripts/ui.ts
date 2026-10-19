@@ -30,18 +30,42 @@ export function showToast(
   toastTimer = window.setTimeout(() => (toast.hidden = true), action || error ? 9000 : 3500);
 }
 
-/** Dialog konfirmasi; resolve true bila tombol konfirmasi ditekan. */
-export function confirmDialog(opts: { title: string; body: string; confirm: string; danger?: boolean }): Promise<boolean> {
+export type DialogChoice = "confirm" | "alt" | "cancel";
+
+/**
+ * Dialog dengan tombol Batal, konfirmasi, dan (opsional) pilihan ketiga `alt`
+ * yang tampil sebagai tombol utama. Esc / klik Batal = "cancel".
+ */
+export function chooseDialog(opts: {
+  title: string;
+  body: string;
+  confirm: string;
+  danger?: boolean;
+  alt?: string;
+}): Promise<DialogChoice> {
   dialog.querySelector<HTMLElement>("[data-title]")!.textContent = opts.title;
   dialog.querySelector<HTMLElement>("[data-body]")!.textContent = opts.body;
   const btn = dialog.querySelector<HTMLButtonElement>("[data-confirm]")!;
   btn.textContent = opts.confirm;
-  btn.className = `btn btn-md ${opts.danger ? "btn-danger" : "btn-primary"}`;
+  // Dengan pilihan ketiga, tombol konfirmasi turun jadi sekunder supaya hanya ada satu tombol utama.
+  btn.className = `btn btn-md ${opts.danger ? "btn-danger" : opts.alt ? "btn-outline" : "btn-primary"}`;
+  const alt = dialog.querySelector<HTMLButtonElement>("[data-alt]")!;
+  alt.hidden = !opts.alt;
+  alt.textContent = opts.alt ?? "";
   dialog.returnValue = "";
   dialog.showModal();
   return new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true });
+    dialog.addEventListener(
+      "close",
+      () => resolve(dialog.returnValue === "confirm" || dialog.returnValue === "alt" ? dialog.returnValue : "cancel"),
+      { once: true },
+    );
   });
+}
+
+/** Dialog konfirmasi; resolve true bila tombol konfirmasi ditekan. */
+export async function confirmDialog(opts: { title: string; body: string; confirm: string; danger?: boolean }): Promise<boolean> {
+  return (await chooseDialog(opts)) === "confirm";
 }
 
 /** Escape teks untuk disisipkan ke innerHTML. */

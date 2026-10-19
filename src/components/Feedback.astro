@@ -11,9 +11,11 @@ import Icon from "./Icon.astro";
   <form method="dialog" class="p-5 sm:p-6">
     <h2 id="confirm-title" class="text-base font-semibold text-ink-900" data-title></h2>
     <p class="mt-2 text-sm leading-relaxed text-ink-600" data-body></p>
-    <div class="mt-5 flex justify-end gap-2">
+    <!-- Mobile: tombol bertumpuk penuh lebar, pilihan utama paling atas. -->
+    <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
       <button value="cancel" class="btn btn-outline btn-md" autofocus>Batal</button>
       <button value="confirm" class="btn btn-md" data-confirm></button>
+      <button value="alt" class="btn btn-primary btn-md" data-alt hidden></button>
     </div>
   </form>
 </dialog>

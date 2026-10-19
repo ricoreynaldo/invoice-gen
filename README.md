@@ -65,8 +65,8 @@ semua perangkat dan tidak pernah dipakai ulang (invoice yang dihapus meninggalka
 - Arsip menyimpan salinan tujuan pembayaran & kontak saat disimpan. Unduh ulang dari halaman
   Arsip memakai salinan itu; mengedit lewat form memakai isian tujuan pembayaran saat ini.
 - Beranda `/`: titik awal setelah login (buat invoice baru, lanjutkan draft, buka arsip,
-  5 invoice terakhir). Form ada di `/buat`; `/buat?new=1` langsung memulai invoice baru
-  (minta konfirmasi bila ada draft yang belum tersimpan di arsip).
+  5 invoice terakhir). Form ada di `/buat`; menu "Buat Invoice" dan `/buat?new=1` selalu membuka invoice kosong baru;
+  bila ada isian belum tersimpan, dialog menawarkan "Simpan & buat baru" atau "Buang isian".
 - Halaman `/arsip`: cari nama/nomor, filter status, ringkasan total, unduh PDF, edit, hapus.
 
 ## QR code identitas

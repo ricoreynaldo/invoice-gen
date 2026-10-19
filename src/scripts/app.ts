@@ -23,7 +23,7 @@ import { allocateInvoiceNumber, getInvoice, saveInvoice } from "../lib/firebase/
 import { fromArchive, toArchivePayload } from "../lib/invoice/archive-model.ts";
 import { todayIso } from "../lib/format.ts";
 import { requireAdmin } from "./session.ts";
-import { confirmDialog, showToast } from "./ui.ts";
+import { chooseDialog, confirmDialog, showToast } from "./ui.ts";
 
 // ---------- DOM ----------
 const $ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
@@ -401,15 +401,42 @@ async function startNewInvoice(): Promise<boolean> {
   }
 }
 
+/**
+ * Ganti form dengan invoice kosong. Konfirmasi hanya bila ada isian yang belum
+ * masuk arsip; admin bisa memilih menyimpannya dulu atau membuangnya.
+ */
 async function openReset() {
-  const body = draft.archived
-    ? `Form dikosongkan untuk invoice baru. ${draft.number} tetap ada di arsip; perubahan yang belum disimpan akan hilang.`
-    : `Isian invoice ${draft.number} belum tersimpan di arsip dan akan dihapus. Tujuan pembayaran dan info bisnis tetap tersimpan.`;
-  const ok = await confirmDialog({ title: "Buat invoice baru?", body, confirm: "Buat invoice baru", danger: !draft.archived });
-  if (!ok) return;
+  const focusName = () => $<HTMLInputElement>("#customerName").focus({ preventScroll: true });
+
+  // Form masih kosong dan belum diarsipkan: sudah invoice baru, jangan buang nomornya.
+  if (!hasContent(draft) && !draft.archived && draft.issueDate === todayIso()) {
+    focusName();
+    showToast(`${draft.number} sudah invoice baru yang masih kosong.`);
+    return;
+  }
+
+  let savedNote = "";
+  if (hasContent(draft) && isDirty()) {
+    const what = draft.archived ? `Perubahan pada ${draft.number}` : `Isian ${draft.number}`;
+    const choice = await chooseDialog({
+      title: "Buat invoice baru?",
+      body: `${what} belum disimpan ke arsip. Simpan dulu supaya tidak hilang, atau buang isiannya. Tujuan pembayaran dan info bisnis tetap tersimpan.`,
+      confirm: "Buang isian",
+      danger: true,
+      alt: "Simpan & buat baru",
+    });
+    if (choice === "cancel") return;
+    if (choice === "alt") {
+      const number = draft.number;
+      // Gagal simpan (belum lengkap / koneksi): tetap di invoice ini, error/toast sudah tampil.
+      if (!(await save())) return;
+      savedNote = `${number} tersimpan. `;
+    }
+  }
+
   if (await startNewInvoice()) {
-    $<HTMLInputElement>("#customerName").focus({ preventScroll: true });
-    showToast(`Invoice baru: ${draft.number}`);
+    focusName();
+    showToast(`${savedNote}Invoice baru: ${draft.number}`);
   }
 }
 
@@ -585,7 +612,7 @@ async function init() {
 
   const params = new URLSearchParams(location.search);
   const editNumber = params.get("edit");
-  /** ?new=1 dari tombol "Buat invoice baru" di beranda/arsip. */
+  /** ?new=1 dari menu "Buat Invoice" dan tombol "Buat invoice baru" di beranda/arsip. */
   const wantsNew = params.has("new");
   if (editNumber || wantsNew) history.replaceState(null, "", location.pathname);
 
@@ -601,11 +628,18 @@ async function init() {
       showToast("Invoice arsip gagal dibuka. Periksa koneksi.", { error: true });
     }
   }
-  // Draft yang sudah diarsipkan diganti nomor baru. Draft kosong dipakai ulang
-  // supaya nomor urut tidak terbuang.
-  if (!ready && wantsNew && restored?.archived) ready = await startNewInvoice();
+  // ?new selalu berakhir di invoice kosong. Pengecualian:
+  // - draft kosong hari ini dipakai ulang supaya nomor urut tidak terbuang;
+  // - draft dengan isian yang belum masuk arsip dibuka dulu lalu dikonfirmasi.
+  if (!ready && wantsNew && restored) {
+    const unsaved =
+      hasContent(restored) &&
+      (!restored.archived || restored.savedSnapshot !== JSON.stringify(toArchivePayload(restored, profile)));
+    const reusable = !restored.archived && !hasContent(restored) && restored.issueDate === todayIso();
+    if (unsaved) confirmNew = true;
+    else if (!reusable) ready = await startNewInvoice();
+  }
   if (!ready && restored) {
-    confirmNew = wantsNew && !restored.archived && hasContent(restored);
     loadIntoForm(restored);
     if (hasContent(restored)) {
       setRestoreBanner(
