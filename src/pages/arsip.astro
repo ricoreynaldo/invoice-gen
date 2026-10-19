@@ -20,16 +20,16 @@ const FILTERS = [
     <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h1 class="text-[26px] leading-tight font-bold tracking-[-0.02em] text-ink-900 sm:text-[32px]">Arsip Invoice</h1>
-        <p class="mt-1.5 text-[15px] text-ink-500">Setiap invoice yang diunduh tersimpan di sini.</p>
+        <p class="mt-1.5 text-[15px] text-ink-500">Invoice yang sudah disimpan muncul di sini.</p>
       </div>
-      <a href="/" class="btn btn-primary btn-md self-start sm:self-auto"><Icon name="plus" />Buat invoice</a>
+      <a href="/buat?new=1" class="btn btn-primary btn-md self-start sm:self-auto"><Icon name="plus" />Buat invoice</a>
     </div>
 
     <dl class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4" id="summary">
-      <div class="card p-4"><dt class="text-xs text-ink-500">Invoice</dt><dd class="mt-1 text-lg font-bold text-ink-900 tabular-nums" data-sum="count">0</dd></div>
-      <div class="card p-4"><dt class="text-xs text-ink-500">Total tagihan</dt><dd class="mt-1 truncate text-lg font-bold text-ink-900 tabular-nums" data-sum="total">Rp0</dd></div>
-      <div class="card p-4"><dt class="text-xs text-ink-500">Sudah dibayar</dt><dd class="mt-1 truncate text-lg font-bold text-ink-900 tabular-nums" data-sum="paid">Rp0</dd></div>
-      <div class="card p-4"><dt class="text-xs text-ink-500">Sisa belum dibayar</dt><dd class="mt-1 truncate text-lg font-bold text-ink-900 tabular-nums" data-sum="balance">Rp0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Invoice</dt><dd class="mt-1 text-[15px] font-bold text-ink-900 tabular-nums sm:text-lg" data-sum="count">0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Total tagihan</dt><dd class="mt-1 text-[15px] font-bold [overflow-wrap:anywhere] sm:text-lg text-ink-900 tabular-nums" data-sum="total">Rp0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Sudah dibayar</dt><dd class="mt-1 text-[15px] font-bold [overflow-wrap:anywhere] sm:text-lg text-ink-900 tabular-nums" data-sum="paid">Rp0</dd></div>
+      <div class="card p-4"><dt class="text-xs text-ink-500">Sisa belum dibayar</dt><dd class="mt-1 text-[15px] font-bold [overflow-wrap:anywhere] sm:text-lg text-ink-900 tabular-nums" data-sum="balance">Rp0</dd></div>
     </dl>
 
     <div class="card">
@@ -39,12 +39,12 @@ const FILTERS = [
           <span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-400"><Icon name="search" /></span>
           <input id="search" type="search" class="field-input h-10 pl-10 text-sm" placeholder="Cari nama customer atau nomor" autocomplete="off" />
         </label>
-        <div class="segmented grid-cols-4 md:w-[26rem]" role="radiogroup" aria-label="Filter status">
+        <div class="segmented flex md:grid md:w-[26rem] md:grid-cols-4" role="radiogroup" aria-label="Filter status">
           {
             FILTERS.map((f, i) => (
-              <label>
+              <label class="flex-auto">
                 <input type="radio" name="filter" value={f.value} checked={i === 0} />
-                <span class="truncate">{f.label}</span>
+                <span class="whitespace-nowrap">{f.label}</span>
               </label>
             ))
           }

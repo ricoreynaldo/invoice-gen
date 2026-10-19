@@ -5,12 +5,12 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import { deleteInvoice, listInvoices } from "../lib/firebase/archive.ts";
 import { fromArchive, type ArchivedInvoice } from "../lib/invoice/archive-model.ts";
 import { layoutInvoice } from "../lib/invoice/layout.ts";
-import { STATUS_LABEL, type PaymentStatus } from "../lib/invoice/types.ts";
+import type { PaymentStatus } from "../lib/invoice/types.ts";
 import type { Measurer } from "../lib/invoice/doc.ts";
 import { formatLongDate, formatRupiah } from "../lib/format.ts";
 import { buildPdf, createMeasurer, loadFonts } from "../lib/pdf/engine.ts";
 import { requireAdmin } from "./session.ts";
-import { confirmDialog, showToast } from "./ui.ts";
+import { confirmDialog, esc, showToast, statusBadge } from "./ui.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -28,9 +28,6 @@ let filter: "all" | PaymentStatus = "all";
 let search = "";
 let measurer: Measurer | null = null;
 
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
 const UPDATED_FMT = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",
   month: "short",
@@ -38,16 +35,6 @@ const UPDATED_FMT = new Intl.DateTimeFormat("id-ID", {
   hour: "2-digit",
   minute: "2-digit",
 });
-
-const BADGE: Record<PaymentStatus, string> = {
-  paid: "bg-ink-900 text-white",
-  dp: "border border-ink-900 text-ink-900",
-  unpaid: "bg-ink-100 text-ink-600",
-};
-
-function badge(status: PaymentStatus) {
-  return `<span class="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold whitespace-nowrap ${BADGE[status]}">${STATUS_LABEL[status]}</span>`;
-}
 
 function updatedText(inv: ArchivedInvoice) {
   const when = inv.updatedAt ? UPDATED_FMT.format(inv.updatedAt) : "—";
@@ -59,7 +46,7 @@ function actions(inv: ArchivedInvoice) {
   const n = esc(inv.number);
   return `<div class="flex items-center justify-end gap-1">
     <button type="button" class="btn btn-ghost h-8 rounded-lg px-2.5 text-[13px]" data-action="pdf" data-number="${n}" aria-label="Unduh PDF ${n}">PDF</button>
-    <a class="btn btn-ghost h-8 rounded-lg px-2.5 text-[13px]" href="/?edit=${encodeURIComponent(inv.number)}" aria-label="Edit ${n}">Edit</a>
+    <a class="btn btn-ghost h-8 rounded-lg px-2.5 text-[13px]" href="/buat?edit=${encodeURIComponent(inv.number)}" aria-label="Edit ${n}">Edit</a>
     <button type="button" class="btn btn-ghost h-8 rounded-lg px-2.5 text-[13px] text-accent-600 hover:bg-accent-50 hover:text-accent-700" data-action="delete" data-number="${n}" aria-label="Hapus ${n}">Hapus</button>
   </div>`;
 }
@@ -92,7 +79,7 @@ function render() {
   if (invoices.length === 0) {
     stateEl.hidden = false;
     stateEl.innerHTML =
-      'Belum ada invoice di arsip.<br/><a class="font-semibold text-ink-900 underline underline-offset-2" href="/">Buat invoice</a> lalu unduh PDF untuk menyimpannya.';
+      'Belum ada invoice di arsip.<br/><a class="font-semibold text-ink-900 underline underline-offset-2" href="/buat?new=1">Buat invoice</a> lalu tekan Simpan untuk memasukkannya ke arsip.';
   } else if (list.length === 0) {
     stateEl.hidden = false;
     stateEl.textContent = "Tidak ada invoice yang cocok dengan pencarian atau filter.";
@@ -107,7 +94,7 @@ function render() {
       return `<tr class="align-middle hover:bg-ink-50">
         <td class="px-4 py-3"><p class="font-semibold text-ink-900 tabular-nums">${esc(inv.number)}</p><p class="text-xs text-ink-500">${formatLongDate(inv.issueDate)}</p></td>
         <td class="max-w-56 px-4 py-3"><p class="truncate text-ink-900">${esc(inv.customerName)}</p><p class="text-xs text-ink-500">${inv.items.length} item</p></td>
-        <td class="px-4 py-3">${badge(inv.status)}</td>
+        <td class="px-4 py-3">${statusBadge(inv.status)}</td>
         <td class="px-4 py-3 text-right font-semibold text-ink-900 tabular-nums">${formatRupiah(inv.totals.total)}</td>
         <td class="px-4 py-3 text-right tabular-nums ${inv.totals.balance > 0 ? "text-ink-900" : "text-ink-400"}">${formatRupiah(inv.totals.balance)}</td>
         <td class="px-4 py-3 text-xs text-ink-500"><p class="whitespace-nowrap">${u.when}</p><p>${esc(u.who)}${u.rev ? ` · ${u.rev}` : ""}</p></td>
@@ -125,7 +112,7 @@ function render() {
             <p class="truncate font-semibold text-ink-900">${esc(inv.customerName)}</p>
             <p class="text-xs text-ink-500 tabular-nums">${esc(inv.number)} · ${formatLongDate(inv.issueDate)}</p>
           </div>
-          ${badge(inv.status)}
+          ${statusBadge(inv.status)}
         </div>
         <div class="mt-3 flex items-end justify-between gap-3 text-sm tabular-nums">
           <div><p class="text-xs text-ink-500">Total</p><p class="font-semibold text-ink-900">${formatRupiah(inv.totals.total)}</p></div>

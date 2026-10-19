@@ -2,18 +2,21 @@
 import Icon from "./Icon.astro";
 
 interface Props {
-  active: "generator" | "archive";
+  active: "home" | "generator" | "archive";
 }
 const { active } = Astro.props;
+// Di layar sempit "Beranda" disembunyikan (logo sudah menuju beranda) dan
+// "Buat Invoice" disingkat supaya header muat satu baris.
 const NAV = [
-  { href: "/", label: "Buat Invoice", key: "generator" },
-  { href: "/arsip", label: "Arsip", key: "archive" },
+  { href: "/", label: "Beranda", short: "", key: "home" },
+  { href: "/buat", label: "Buat Invoice", short: "Buat", key: "generator" },
+  { href: "/arsip", label: "Arsip", short: "Arsip", key: "archive" },
 ] as const;
 ---
 
 <header class="border-b border-ink-200 bg-white">
   <div class="container-app flex h-16 items-center justify-between gap-3">
-    <div class="flex min-w-0 items-center gap-4 sm:gap-7">
+    <div class="flex min-w-0 items-center gap-2.5 sm:gap-7">
       <a href="/" class="text-[20px] font-bold tracking-[-0.01em] text-ink-900">BERESIN</a>
       <nav class="flex items-center gap-1" aria-label="Menu utama">
         {
@@ -22,11 +25,19 @@ const NAV = [
               href={item.href}
               aria-current={active === item.key ? "page" : undefined}
               class:list={[
-                "rounded-lg px-2.5 py-1.5 text-sm transition-colors sm:px-3",
+                "rounded-lg px-2 py-1.5 text-sm transition-colors sm:px-3",
+                !item.short && "hidden sm:block",
                 active === item.key ? "bg-ink-100 font-semibold text-ink-900" : "text-ink-600 hover:text-ink-900",
               ]}
             >
-              {item.label}
+              {item.short && item.short !== item.label ? (
+                <>
+                  <span class="sm:hidden">{item.short}</span>
+                  <span class="hidden sm:inline">{item.label}</span>
+                </>
+              ) : (
+                item.label
+              )}
             </a>
           ))
         }

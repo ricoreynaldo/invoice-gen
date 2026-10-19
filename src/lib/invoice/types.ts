@@ -31,6 +31,8 @@ export interface InvoiceDraft {
   notes: string;
   /** true bila invoice ini sudah ada di arsip online (perubahan disimpan saat unduh ulang). */
   archived?: boolean;
+  /** Isi arsip saat terakhir disimpan (JSON payload), untuk tahu ada perubahan yang belum disimpan. */
+  savedSnapshot?: string;
 }
 
 /**

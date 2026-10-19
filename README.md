@@ -57,12 +57,16 @@ semua perangkat dan tidak pernah dipakai ulang (invoice yang dihapus meninggalka
 
 ## Arsip
 
-- **Simpan & Unduh PDF** menyimpan invoice ke `invoices/{nomor}` dulu, baru mengunduh PDF.
-  Kalau penyimpanan gagal, PDF tidak diunduh.
-- Invoice di arsip bisa dibuka lagi (`/?edit=<nomor>`), misalnya DP → Lunas, lalu diunduh
+- Tombol **Simpan** menulis invoice ke `invoices/{nomor}`; tombol **PDF** hanya mengunduh.
+  Tombol yang perlu ditekan berikutnya berwarna hitam. Perubahan dibandingkan dengan
+  `savedSnapshot` di draft; unduh PDF dengan perubahan belum tersimpan memunculkan pengingat. Ctrl/Cmd+S = Simpan.
+- Invoice di arsip bisa dibuka lagi (`/buat?edit=<nomor>`), misalnya DP → Lunas, lalu disimpan
   ulang dengan nomor sama. Setiap simpan menaikkan `revision` dan mencatat riwayat status.
 - Arsip menyimpan salinan tujuan pembayaran & kontak saat disimpan. Unduh ulang dari halaman
   Arsip memakai salinan itu; mengedit lewat form memakai isian tujuan pembayaran saat ini.
+- Beranda `/`: titik awal setelah login (buat invoice baru, lanjutkan draft, buka arsip,
+  5 invoice terakhir). Form ada di `/buat`; `/buat?new=1` langsung memulai invoice baru
+  (minta konfirmasi bila ada draft yang belum tersimpan di arsip).
 - Halaman `/arsip`: cari nama/nomor, filter status, ringkasan total, unduh PDF, edit, hapus.
 
 ## QR code identitas

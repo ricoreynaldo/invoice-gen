@@ -20,7 +20,7 @@ import { formatLongDate, formatMoneyInput, formatRupiah, parseMoney } from "../l
 import { buildPdf, createMeasurer, loadFonts } from "../lib/pdf/engine.ts";
 import { pageToSvg } from "../lib/pdf/svg.ts";
 import { allocateInvoiceNumber, getInvoice, saveInvoice } from "../lib/firebase/archive.ts";
-import { fromArchive } from "../lib/invoice/archive-model.ts";
+import { fromArchive, toArchivePayload } from "../lib/invoice/archive-model.ts";
 import { todayIso } from "../lib/format.ts";
 import { requireAdmin } from "./session.ts";
 import { confirmDialog, showToast } from "./ui.ts";
@@ -89,7 +89,7 @@ function persistNow() {
   window.clearTimeout(saveTimer);
   const ok = saveDraft(draft);
   const time = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-  setSaveStatus(ok ? `Draft tersimpan ${time}` : "Draft tidak bisa disimpan di browser ini", ok);
+  setSaveStatus(ok ? `Draft otomatis ${time}` : "Draft tidak bisa disimpan di browser ini", ok);
 }
 
 function schedulePersist() {
@@ -126,7 +126,7 @@ function renderItems() {
 }
 
 function renderArchiveChip() {
-  $("#archive-chip").textContent = draft.archived ? "Tersimpan di arsip" : "Otomatis";
+  $("#archive-chip").textContent = draft.archived ? "Di arsip" : "Otomatis";
 }
 
 function fillForm() {
@@ -270,6 +270,7 @@ function update() {
   renderSummary();
   renderErrors();
   renderPreview();
+  renderSaveButtons();
 }
 
 function changed() {
@@ -299,6 +300,7 @@ form.addEventListener("input", (event) => {
     const key = target.dataset.profile as Exclude<keyof BusinessProfile, "version">;
     profile[key] = target.value;
     saveProfile(profile);
+    // Tujuan pembayaran & kontak ikut tersimpan di arsip, jadi tombol Simpan ikut diperbarui.
     scheduleUpdate();
     return;
   }
@@ -415,7 +417,79 @@ resetBtn.addEventListener("click", openReset);
 $("#restore-new").addEventListener("click", openReset);
 $("#restore-dismiss").addEventListener("click", () => setRestoreBanner(null));
 
-// ---------- Download PDF ----------
+// ---------- Simpan & PDF ----------
+// Simpan = tulis ke arsip online. PDF = unduh saja. Keduanya terpisah supaya
+// admin bisa menyimpan (mis. DP -> Lunas) tanpa mengunduh, dan sebaliknya.
+
+let saving = false;
+
+/** Isi arsip untuk form saat ini; sama dengan snapshot berarti tidak ada perubahan. */
+function archiveSnapshot(): string {
+  return JSON.stringify(toArchivePayload(draft, profile));
+}
+
+function isDirty(): boolean {
+  return !draft.archived || draft.savedSnapshot !== archiveSnapshot();
+}
+
+function renderSaveButtons() {
+  const dirty = isDirty();
+  for (const btn of $$<HTMLButtonElement>(".js-save")) {
+    btn.classList.toggle("btn-primary", dirty);
+    btn.classList.toggle("btn-outline", !dirty);
+    btn.disabled = saving;
+    $("[data-save-label]", btn).textContent = saving ? "Menyimpan…" : dirty ? "Simpan" : "Tersimpan";
+    $('[data-save-icon="save"]', btn).hidden = !dirty;
+    $('[data-save-icon="check"]', btn).hidden = dirty;
+    btn.title = dirty ? "Simpan ke arsip" : "Sudah tersimpan di arsip";
+  }
+  for (const btn of $$<HTMLButtonElement>(".js-pdf")) {
+    btn.classList.toggle("btn-primary", !dirty);
+    btn.classList.toggle("btn-outline", dirty);
+  }
+}
+
+/** Tampilkan semua error; false bila invoice belum lengkap. */
+function ensureValid(): boolean {
+  showAllErrors = true;
+  update();
+  if (Object.keys(errors).length === 0) return true;
+  focusFirstError();
+  return false;
+}
+
+async function save(): Promise<boolean> {
+  if (saving || !ensureValid()) return false;
+  if (!isDirty()) {
+    showToast(`${draft.number} sudah tersimpan di arsip.`, { action: { label: "Unduh PDF", run: downloadPdf } });
+    return true;
+  }
+  saving = true;
+  renderSaveButtons();
+  try {
+    const snapshot = archiveSnapshot();
+    const revision = await saveInvoice(draft, profile, userEmail);
+    draft.archived = true;
+    draft.savedSnapshot = snapshot;
+    persistNow();
+    renderArchiveChip();
+    showToast(revision > 1 ? `Arsip diperbarui (revisi ${revision}).` : `${draft.number} tersimpan di arsip.`, {
+      action: { label: "Unduh PDF", run: downloadPdf },
+    });
+    return true;
+  } catch (err) {
+    console.error(err);
+    showToast("Gagal menyimpan ke arsip. Periksa koneksi lalu coba lagi.", {
+      error: true,
+      action: { label: "Coba lagi", run: save },
+    });
+    return false;
+  } finally {
+    saving = false;
+    renderSaveButtons();
+  }
+}
+
 function focusFirstError() {
   const order = [
     "status",
@@ -439,45 +513,25 @@ function focusFirstError() {
   el?.focus({ preventScroll: true });
 }
 
-async function download() {
-  showAllErrors = true;
-  update();
-  if (Object.keys(errors).length > 0) {
-    focusFirstError();
-    return;
-  }
-
-  const buttons = $$<HTMLButtonElement>(".js-download");
+async function downloadPdf() {
+  if (!ensureValid()) return;
+  const buttons = $$<HTMLButtonElement>(".js-pdf");
   buttons.forEach((b) => (b.disabled = true));
   try {
     if (!measurer) {
       await loadFonts();
       measurer = createMeasurer();
     }
-    const layout = layoutInvoice(draft, profile, measurer);
-    const filename = `Invoice-Beresin-${draft.number}.pdf`;
-    const pdf = buildPdf(layout, { title: `Invoice ${draft.number}` });
-
-    // Simpan ke arsip dulu: setiap PDF yang beredar pasti ada di arsip.
-    let revision: number;
-    try {
-      revision = await saveInvoice(draft, profile, userEmail);
-    } catch (err) {
-      console.error(err);
-      showToast("Gagal menyimpan ke arsip, PDF belum diunduh. Periksa koneksi lalu coba lagi.", {
-        error: true,
-        action: { label: "Coba lagi", run: download },
-      });
-      return;
+    const pdf = buildPdf(layoutInvoice(draft, profile, measurer), { title: `Invoice ${draft.number}` });
+    await pdf.save(`Invoice-Beresin-${draft.number}.pdf`, { returnPromise: true });
+    if (isDirty()) {
+      showToast(
+        draft.archived ? "PDF diunduh. Perubahan terakhir belum disimpan ke arsip." : "PDF diunduh. Invoice ini belum disimpan ke arsip.",
+        { action: { label: "Simpan", run: save } },
+      );
+    } else {
+      showToast("PDF diunduh.", { action: { label: "Invoice baru", run: openReset } });
     }
-    draft.archived = true;
-    persistNow();
-    renderArchiveChip();
-
-    await pdf.save(filename, { returnPromise: true });
-    showToast(revision > 1 ? `Arsip diperbarui (revisi ${revision}) & PDF diunduh.` : "Tersimpan di arsip & PDF diunduh.", {
-      action: { label: "Invoice baru", run: openReset },
-    });
   } catch (err) {
     console.error(err);
     showToast("PDF gagal dibuat. Muat ulang halaman lalu coba lagi.", { error: true });
@@ -486,13 +540,15 @@ async function download() {
   }
 }
 
-for (const btn of $$(".js-download")) btn.addEventListener("click", download);
+for (const btn of $$(".js-save")) btn.addEventListener("click", save);
+for (const btn of $$(".js-pdf")) btn.addEventListener("click", downloadPdf);
 
-// Ctrl/Cmd+S tidak menyimpan halaman HTML, tetapi menyimpan draft.
+// Ctrl/Cmd+S sama dengan tombol Simpan (draft di browser ikut tersimpan).
 window.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
     persistNow();
+    save();
   }
 });
 window.addEventListener("pagehide", persistNow);
@@ -515,8 +571,10 @@ async function openFromArchive(number: string): Promise<boolean> {
     });
     if (!ok) return false;
   }
-  loadIntoForm(fromArchive(inv).draft);
-  setRestoreBanner(`Mengedit ${number} dari arsip. Perubahan tersimpan ke arsip saat PDF diunduh ulang.`);
+  draft = fromArchive(inv).draft;
+  draft.savedSnapshot = archiveSnapshot();
+  loadIntoForm(draft);
+  setRestoreBanner(`Mengedit ${number} dari arsip. Tekan Simpan untuk menyimpan perubahan.`);
   return true;
 }
 
@@ -525,11 +583,16 @@ async function init() {
   const user = await requireAdmin();
   userEmail = user.email ?? "";
 
-  const editNumber = new URLSearchParams(location.search).get("edit");
-  if (editNumber) history.replaceState(null, "", location.pathname);
+  const params = new URLSearchParams(location.search);
+  const editNumber = params.get("edit");
+  /** ?new=1 dari tombol "Buat invoice baru" di beranda/arsip. */
+  const wantsNew = params.has("new");
+  if (editNumber || wantsNew) history.replaceState(null, "", location.pathname);
 
   const restored = loadDraft();
   let ready = false;
+  /** Draft berisi yang belum masuk arsip: jangan dibuang tanpa konfirmasi. */
+  let confirmNew = false;
   if (editNumber) {
     try {
       ready = await openFromArchive(editNumber);
@@ -538,12 +601,16 @@ async function init() {
       showToast("Invoice arsip gagal dibuka. Periksa koneksi.", { error: true });
     }
   }
+  // Draft yang sudah diarsipkan diganti nomor baru. Draft kosong dipakai ulang
+  // supaya nomor urut tidak terbuang.
+  if (!ready && wantsNew && restored?.archived) ready = await startNewInvoice();
   if (!ready && restored) {
+    confirmNew = wantsNew && !restored.archived && hasContent(restored);
     loadIntoForm(restored);
     if (hasContent(restored)) {
       setRestoreBanner(
         restored.archived
-          ? `Melanjutkan ${restored.number} (tersimpan di arsip). Perubahan tersimpan saat PDF diunduh ulang.`
+          ? `Melanjutkan ${restored.number} (ada di arsip). Tekan Simpan untuk menyimpan perubahan.`
           : `Melanjutkan draft ${restored.number} yang belum tersimpan di arsip.`,
       );
     }
@@ -555,6 +622,7 @@ async function init() {
     $("#invoice-number").textContent = "Gagal mengambil nomor";
     return;
   }
+  if (confirmNew) openReset();
 
   loadFonts()
     .then(async () => {
